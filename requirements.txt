@@ -12,7 +12,6 @@ langchain
 langchain-core
 langchain-community
 langchain-experimental
-langchain-groq
+langchain-google-genai
 langgraph
 langsmith
-groq

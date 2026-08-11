@@ -13,7 +13,7 @@ from langchain_core.language_models import BaseLanguageModel
 from langchain_core.prompts import PromptTemplate
 from langchain_experimental.sql.base import SQLDatabaseChain
 from langchain_experimental.tools import PythonREPLTool
-from langchain_groq.chat_models import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.constants import END, START
 from langgraph.graph import StateGraph
 from sqlalchemy import text
@@ -30,9 +30,11 @@ class OmniRetailState(TypedDict):
 
 
 def _create_llm() -> BaseLanguageModel:
-    return ChatGroq(
-        model="llama-3.1-8b-instant",
-        api_key=os.getenv("GROQ_API_KEY"),
+    return ChatGoogleGenerativeAI(
+        model="gemini-1.5-pro",
+        google_api_key=os.getenv("GOOGLE_API_KEY"),
+        temperature=0,
+        convert_system_message_to_human=True,
     )
 
 
