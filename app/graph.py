@@ -58,7 +58,7 @@ def _create_sql_agent(llm: BaseLanguageModel) -> SQLDatabaseChain:
         return_direct=True,
     )
 
-
+Indonesia trapsardi na trofres
 def _extract_sql_query(text_output: str) -> str:
     sql_output = text_output.strip()
     pattern = re.compile(
@@ -131,17 +131,22 @@ def _execute_python_code(python_code: str, chart_path: str, sql_result: str) -> 
         return {"error": f"Python execution failed: {str(e)}"}
 
 
-def _ensure_chart_dir() -> Path:
-    chart_dir = Path(__file__).resolve().parent.parent / "charts"
-    chart_dir.mkdir(parents=True, exist_ok=True)
-    return chart_dir
+def _get_chart_dir() -> str:
+    """Return the container-aware chart directory path."""
+    # Use /app/charts inside Docker, fall back to local for dev
+    if os.path.exists("/app/charts"):
+        return "/app/charts"
+    else:
+        chart_dir = Path(__file__).resolve().parent.parent / "charts"
+        chart_dir.mkdir(parents=True, exist_ok=True)
+        return str(chart_dir)
 
 
 def create_omniretail_graph() -> StateGraph[OmniRetailState, None, OmniRetailState, OmniRetailState]:
     llm = _create_llm()
     sql_agent = _create_sql_agent(llm)
     python_code_generator = _create_python_code_generator(llm)
-    chart_dir = _ensure_chart_dir()
+    chart_base_dir = _get_chart_dir()
 
     graph = StateGraph(state_schema=OmniRetailState)
 
@@ -159,7 +164,9 @@ def create_omniretail_graph() -> StateGraph[OmniRetailState, None, OmniRetailSta
 
     def python_node(state: OmniRetailState) -> OmniRetailState:
         sql_result = state["sql_result"]
-        chart_path = chart_dir / f"omniretail_chart_{uuid4().hex}.png"
+        filename = f"omniretail_chart_{uuid4().hex}.png"
+        chart_path_absolute = os.path.join(chart_base_dir, filename)
+        chart_url = f"/charts/{filename}"
         
         python_prompt = (
             "You are a Python data analyst. Generate ONLY Python code to create a chart from the SQL result below. "
@@ -168,11 +175,12 @@ def create_omniretail_graph() -> StateGraph[OmniRetailState, None, OmniRetailSta
             "Requirements:\n"
             "1. Parse the sql_result (JSON string) using json.loads()\n"
             "2. Create a meaningful chart using matplotlib\n"
-            "3. Save the chart to chart_path using plt.savefig()\n"
-            "4. Use plt.close() after saving\n\n"
-            f"Variables available:\n"
+            "3. Save the chart EXACTLY to the chart_path variable using plt.savefig(chart_path)\n"
+            "4. Use plt.close() after saving\n"
+            "5. DO NOT modify the chart_path variable - use it exactly as provided\n\n"
+            f"Variables available (use these exactly):\n"
             f"- sql_result = {sql_result!r}\n"
-            f"- chart_path = {str(chart_path)!r}\n\n"
+            f"- chart_path = {chart_path_absolute!r}\n\n"
             "Example format:\n"
             "```python\n"
             "import json\n"
@@ -189,25 +197,25 @@ def create_omniretail_graph() -> StateGraph[OmniRetailState, None, OmniRetailSta
             llm_output = llm_response.content if hasattr(llm_response, 'content') else str(llm_response)
             
             python_code = _extract_python_code(llm_output)
-            execution_result = _execute_python_code(python_code, str(chart_path), sql_result)
+            execution_result = _execute_python_code(python_code, chart_path_absolute, sql_result)
             
             if execution_result.get("success"):
                 return {
                     "python_code": python_code,
-                    "chart_path": str(chart_path),
-                    "final_response": execution_result["message"],
+                    "chart_path": chart_url,
+                    "final_response": f"Chart generated successfully. Available at: {chart_url}",
                 }
             else:
                 return {
                     "python_code": f"Error: {execution_result.get('error', 'Unknown error')}",
-                    "chart_path": str(chart_path),
+                    "chart_path": "",
                     "final_response": f"Python execution failed: {execution_result.get('error', 'Unknown error')}",
                 }
                 
         except Exception as e:
             return {
                 "python_code": f"Error extracting or executing code: {str(e)}",
-                "chart_path": str(chart_path),
+                "chart_path": "",
                 "final_response": f"Python node failed: {str(e)}",
             }
 
