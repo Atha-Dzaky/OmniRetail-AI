@@ -1,0 +1,54 @@
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Logs & runtime artifacts
+logs/
+*.log
+charts/
+
+# Dataset — large CSV files not needed in image
+dataset/
+
+# Docs & planning
+docs/
+tasks/
+skills/
+agents/
+PROJECT_PLAN.md
+
+# Tests
+tests/
+pytest_cache/
+.coverage
+htmlcov/
+
+# Migrations (handled separately)
+migrations/

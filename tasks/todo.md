@@ -1,0 +1,24 @@
+# OmniRetail AI Phase 1 Checklist
+
+- [ ] Task 1: Define database schema
+  - [ ] Create `products` table
+  - [ ] Create `sales_transactions` table
+  - [ ] Create `platform_pricing` table
+  - [ ] Create `expenses` table
+  - [ ] Create `warehouse_operations` table
+  - [ ] Add indexes on query-heavy fields
+- [ ] Task 2: Implement ETL for core dataset
+  - [ ] Normalize dates
+  - [ ] Validate SKU and numeric fields
+  - [ ] Load `Sale Report.csv`
+  - [ ] Load one sales file successfully
+- [ ] Task 3: Build FastAPI skeleton and health endpoints
+  - [ ] `/health` endpoint returns status
+  - [ ] `/products` endpoint returns products
+- [ ] Task 4: Add Docker Compose, Nginx proxy, and env config
+  - [ ] `docker compose up --build` succeeds
+  - [ ] Nginx proxies to FastAPI
+  - [ ] Application accessible via `http://localhost/`
+- [ ] Task 5: Validate full phase 1 flow
+  - [ ] End-to-end flow verified
+  - [ ] No critical errors in logs
