@@ -47,7 +47,9 @@ def _create_sql_agent(llm: BaseLanguageModel) -> SQLDatabaseChain:
             "2. Do not include any prefix or suffix, including 'SQLQuery:', 'SQLResult:', or 'Answer:'.\n"
             "3. AGGREGATE FUNCTIONS: If you use aggregate functions like SUM(), COUNT(), AVG(), MIN(), or MAX(), ALL other columns in the SELECT clause MUST be included in the GROUP BY clause.\n"
             "4. SCHEMA AWARENESS: The 'size' and 'color' columns are ONLY in the 'products' table. If a query asks about size/color and sales, you MUST JOIN 'sales_transactions' with 'products'.\n"
-            "5. DATA EXISTENCE: If the user asks about data that does not exist in the database (e.g., cats, food, weather, animals, sports, etc. - anything unrelated to e-commerce sales), DO NOT generate SQL. Return EXACTLY: 'MAAF_DATA_TIDAK_ADA'\n\n"
+            "5. DATA EXISTENCE: If the user asks about data that does not exist in the database (e.g., cats, food, weather, animals, sports, etc. - anything unrelated to e-commerce sales), DO NOT generate SQL. Return EXACTLY: 'MAAF_DATA_TIDAK_ADA'\n"
+            "6. AMBIGUOUS COLUMNS IN JOINS: When performing a JOIN between tables that have the same column name (e.g., 'sku' exists in both 'products' and 'sales_transactions'), you MUST use table aliases or full table names in the SELECT clause (e.g., 'SELECT p.sku, p.size' instead of just 'SELECT sku').\n"
+            "7. PERCENTAGE & DISTRIBUTION CALCULATIONS: When asked to calculate percentages or distributions, use Window Functions or Subqueries. Example: Calculate the total sum first, then divide each group's sum by the total, then multiply by 100.\n\n"
             "Schema:\n{table_info}\n"
             "Dialect: {dialect}\n"
             "Limit results to at most {top_k} rows unless the user explicitly asks for more.\n\n"
@@ -169,15 +171,42 @@ def create_omniretail_graph() -> StateGraph[OmniRetailState, None, OmniRetailSta
 
     def sql_node(state: OmniRetailState) -> OmniRetailState:
         query = state["user_query"]
-        result_response = sql_agent.invoke({"query": query})
-        raw_sql_output = str(result_response.get("result", result_response))
-        sql_query = _extract_sql_query(raw_sql_output)
-        sql_result = _execute_sql_query(sql_query)
+        try:
+            result_response = sql_agent.invoke({"query": query})
+            raw_sql_output = str(result_response.get("result", result_response))
+            
+            # Check for refusal marker
+            if "MAAF_DATA_TIDAK_ADA" in raw_sql_output:
+                return {
+                    "sql_result": "MAAF_DATA_TIDAK_ADA",
+                    "final_response": "Maaf, saya tidak dapat menemukan data atau membuat query untuk pertanyaan tersebut. Silakan tanyakan hal lain seputar data e-commerce.",
+                    "python_code": "",
+                    "chart_path": "",
+                }
+            
+            sql_query = _extract_sql_query(raw_sql_output)
+            sql_result = _execute_sql_query(sql_query)
 
-        return {
-            "sql_result": sql_result,
-            "final_response": sql_result,
-        }
+            return {
+                "sql_result": sql_result,
+                "final_response": sql_result,
+            }
+        except ValueError as e:
+            # SQL extraction or execution failed
+            return {
+                "sql_result": "",
+                "final_response": "Maaf, saya tidak dapat menemukan data atau membuat query untuk pertanyaan tersebut. Silakan tanyakan hal lain seputar data e-commerce.",
+                "python_code": "",
+                "chart_path": "",
+            }
+        except Exception as e:
+            # Any other unexpected error
+            return {
+                "sql_result": "",
+                "final_response": "Maaf, saya tidak dapat menemukan data atau membuat query untuk pertanyaan tersebut. Silakan tanyakan hal lain seputar data e-commerce.",
+                "python_code": "",
+                "chart_path": "",
+            }
 
     def python_node(state: OmniRetailState) -> OmniRetailState:
         sql_result = state["sql_result"]
@@ -203,7 +232,12 @@ def create_omniretail_graph() -> StateGraph[OmniRetailState, None, OmniRetailSta
             "2. Create a meaningful chart using matplotlib\n"
             "3. Save the chart EXACTLY to the chart_path variable using plt.savefig(chart_path)\n"
             "4. Use plt.close() after saving\n"
-            "5. DO NOT modify the chart_path variable - use it exactly as provided\n\n"
+            "5. DO NOT modify the chart_path variable - use it exactly as provided\n"
+            "6. CRITICAL VISUALIZATION: You MUST strictly follow the user's requested chart type. "
+            "If the user asks for a 'pie chart', you MUST use plt.pie(). "
+            "If they ask for a 'line chart', you MUST use plt.plot(). "
+            "If they ask for a 'bar chart' or no type specified, use plt.bar(). "
+            "Do not default to bar charts if a specific chart type is requested.\n\n"
             f"Variables available (use these exactly):\n"
             f"- sql_result = {sql_result!r}\n"
             f"- chart_path = {chart_path_absolute!r}\n\n"
