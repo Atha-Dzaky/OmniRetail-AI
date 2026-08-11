@@ -58,7 +58,6 @@ def _create_sql_agent(llm: BaseLanguageModel) -> SQLDatabaseChain:
         return_direct=True,
     )
 
-Indonesia trapsardi na trofres
 def _extract_sql_query(text_output: str) -> str:
     sql_output = text_output.strip()
     pattern = re.compile(
