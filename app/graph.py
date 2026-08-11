@@ -41,9 +41,13 @@ def _create_sql_agent(llm: BaseLanguageModel) -> SQLDatabaseChain:
     sql_prompt = PromptTemplate(
         input_variables=["input", "table_info", "dialect", "top_k"],
         template=(
-            "You are an expert SQL query generator. Given the schema below and the user request, output ONLY the raw SQL statement. "
-            "CRITICAL: You must ONLY output the raw SQL query. Do not include any conversational text, explanations, or the word 'Question'. "
-            "Do not include any prefix or suffix, including 'SQLQuery:', 'SQLResult:', or 'Answer:'.\n\n"
+            "You are an expert SQL query generator for an e-commerce database. Given the schema below and the user request, output ONLY the raw SQL statement.\n\n"
+            "=== CRITICAL SQL RULES ===\n"
+            "1. You must ONLY output the raw SQL query. Do not include any conversational text, explanations, or the word 'Question'.\n"
+            "2. Do not include any prefix or suffix, including 'SQLQuery:', 'SQLResult:', or 'Answer:'.\n"
+            "3. AGGREGATE FUNCTIONS: If you use aggregate functions like SUM(), COUNT(), AVG(), MIN(), or MAX(), ALL other columns in the SELECT clause MUST be included in the GROUP BY clause.\n"
+            "4. SCHEMA AWARENESS: The 'size' and 'color' columns are ONLY in the 'products' table. If a query asks about size/color and sales, you MUST JOIN 'sales_transactions' with 'products'.\n"
+            "5. DATA EXISTENCE: If the user asks about data that does not exist in the database (e.g., cats, food, weather, animals, sports, etc. - anything unrelated to e-commerce sales), DO NOT generate SQL. Return EXACTLY: 'MAAF_DATA_TIDAK_ADA'\n\n"
             "Schema:\n{table_info}\n"
             "Dialect: {dialect}\n"
             "Limit results to at most {top_k} rows unless the user explicitly asks for more.\n\n"
@@ -140,6 +144,20 @@ def _get_chart_dir() -> str:
         chart_dir.mkdir(parents=True, exist_ok=True)
         return str(chart_dir)
 
+def _is_empty_or_invalid_result(sql_result: str) -> bool:
+    """Check if sql_result is empty, None, or contains error marker."""
+    if not sql_result or sql_result is None:
+        return True
+    if "MAAF_DATA_TIDAK_ADA" in sql_result:
+        return True
+    try:
+        parsed = json.loads(sql_result)
+        if isinstance(parsed, list) and len(parsed) == 0:
+            return True
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return False
+
 
 def create_omniretail_graph() -> StateGraph[OmniRetailState, None, OmniRetailState, OmniRetailState]:
     llm = _create_llm()
@@ -163,6 +181,15 @@ def create_omniretail_graph() -> StateGraph[OmniRetailState, None, OmniRetailSta
 
     def python_node(state: OmniRetailState) -> OmniRetailState:
         sql_result = state["sql_result"]
+        
+        # Check if result is empty or invalid
+        if _is_empty_or_invalid_result(sql_result):
+            return {
+                "python_code": "",
+                "chart_path": "",
+                "final_response": "Maaf, saya tidak dapat menemukan data terkait pertanyaan Anda di database. Silakan coba pertanyaan lain seputar penjualan e-commerce.",
+            }
+        
         filename = f"omniretail_chart_{uuid4().hex}.png"
         chart_path_absolute = os.path.join(chart_base_dir, filename)
         chart_url = f"/charts/{filename}"
