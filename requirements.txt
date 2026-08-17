@@ -12,6 +12,10 @@ langchain
 langchain-core
 langchain-community
 langchain-experimental
-langchain-google-genai
+langchain-groq
+groq
+aiohttp==3.9.5
 langgraph
 langsmith
+streamlit
+requests

@@ -6,10 +6,9 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql://omniretail_user:password_amankan@192.168.1.200:5432/omniretail
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
-      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
       PYTHONUNBUFFERED: "1"
     volumes:
       - ./charts:/app/charts
