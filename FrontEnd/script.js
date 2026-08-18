@@ -1,8 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   OmniRetail AI — Frontend Controller (Vanilla JS)
-   Talks to the FastAPI backend:
-     POST /graph/query  { query }  ->  { final_response, sql_result, python_code, chart_path }
-     GET  /health                    ->  backend status
+   OmniRetail AI — Frontend Controller (Tailwind Version)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const API_BASE = "http://127.0.0.1:8000";
@@ -11,6 +8,7 @@ const HEALTH_URL = `${API_BASE}/health`;
 const REQUEST_TIMEOUT_MS = 120000;
 const STORAGE_KEY_MESSAGES = "omniretail_messages";
 const STORAGE_KEY_THOUGHTS = "omniretail_thoughts";
+const STORAGE_KEY_THEME = "omniretail-theme";
 const MAX_QUERY_LENGTH = 2000;
 
 // ── DOM refs ────────────────────────────────────────────────────────────────
@@ -23,11 +21,13 @@ const welcomeHero = document.getElementById("welcomeHero");
 const thoughtList = document.getElementById("thoughtList");
 const healthStatus = document.getElementById("healthStatus");
 const healthText = healthStatus.querySelector(".health-text");
+const healthDot = healthStatus.querySelector(".health-dot");
 const clearChatBtn = document.getElementById("clearChatBtn");
 const suggestionChips = document.getElementById("suggestionChips");
 const sidebar = document.getElementById("sidebar");
 const sidebarToggle = document.getElementById("sidebarToggle");
 const sidebarOverlay = document.getElementById("sidebarOverlay");
+const themeToggle = document.getElementById("themeToggle");
 const charCount = document.getElementById("charCount");
 
 let isLoading = false;
@@ -71,10 +71,6 @@ function formatCell(value) {
     return escapeHtml(value);
 }
 
-/**
- * Render markdown to sanitized HTML.
- * Falls back to escaped plain text if marked/DOMPurify not loaded.
- */
 function renderMarkdown(text) {
     if (typeof marked !== "undefined" && typeof DOMPurify !== "undefined") {
         try {
@@ -84,7 +80,6 @@ function renderMarkdown(text) {
             return escapeHtml(text);
         }
     }
-    // Fallback: plain text with line breaks
     return escapeHtml(text).replace(/\n/g, "<br>");
 }
 
@@ -111,27 +106,30 @@ function clearState() {
     localStorage.removeItem(STORAGE_KEY_THOUGHTS);
 }
 
-// In-memory state (mirrors localStorage)
 const state = loadState();
 
 // ── Health check ────────────────────────────────────────────────────────────
 async function checkHealth() {
-    healthStatus.className = "health-status checking";
     healthText.textContent = "Checking backend…";
+    healthText.className = "health-text font-label-sm text-label-sm text-on-surface-variant dark:text-[#c7c5d3]";
+    healthDot.className = "health-dot w-2 h-2 rounded-full bg-outline-variant";
+    
     try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 5000);
         const resp = await fetch(HEALTH_URL, { signal: controller.signal });
         clearTimeout(timer);
         if (resp.ok) {
-            healthStatus.className = "health-status ok";
             healthText.textContent = "Backend Connected";
+            healthText.className = "health-text font-label-sm text-label-sm text-success";
+            healthDot.className = "health-dot w-2 h-2 rounded-full bg-success shadow-[0_0_0_3px_rgba(34,197,94,0.15)]";
         } else {
             throw new Error(`HTTP ${resp.status}`);
         }
     } catch {
-        healthStatus.className = "health-status err";
         healthText.textContent = "Offline";
+        healthText.className = "health-text font-label-sm text-label-sm text-error";
+        healthDot.className = "health-dot w-2 h-2 rounded-full bg-error shadow-[0_0_0_3px_rgba(239,68,68,0.15)]";
     }
 }
 
@@ -143,31 +141,28 @@ function hideWelcome() {
 function addUserMessage(text) {
     hideWelcome();
     const node = el(`
-        <div class="msg user">
-            <div class="msg-tag">
-                <span class="tag-icon"><span class="material-symbols-outlined">person</span></span>
-                <span>You</span>
+        <div class="self-end max-w-[92%] md:max-w-[72%] flex flex-col items-end">
+            <div class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant dark:text-[#94A3B8] mb-1">You</div>
+            <div class="bg-user-bubble dark:bg-[#c0c1ff] text-on-surface dark:text-[#21237c] px-lg py-md rounded-xl rounded-tr-sm font-body-md text-body-md border border-border-std dark:border-transparent">
             </div>
-            <div class="bubble-user"></div>
         </div>
     `);
-    node.querySelector(".bubble-user").textContent = text;
+    node.querySelector("div:nth-child(2)").textContent = text;
     chatList.appendChild(node);
     scrollToBottom();
 }
 
 function showThinking() {
     const node = el(`
-        <div class="msg ai" id="thinkingMsg">
-            <div class="msg-tag">
-                <span class="tag-icon"><span class="material-symbols-outlined">smart_toy</span></span>
-                <span>OmniRetail Agent</span>
-            </div>
-            <div class="bubble-thinking">
-                <span class="thinking-dots">
-                    <span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>
+        <div class="self-start max-w-[92%] md:max-w-[72%] flex flex-col items-start w-full" id="thinkingMsg">
+            <div class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant dark:text-[#94A3B8] mb-1">OmniRetail Agent</div>
+            <div class="bg-[#0F172A] dark:bg-[#39485a] text-[#EAF1FF] dark:text-[#c0c1ff] px-lg py-md rounded-xl rounded-tl-sm font-body-md text-body-md shadow-sm flex items-center gap-2">
+                <span class="flex gap-1">
+                    <span class="tdot w-1.5 h-1.5 rounded-full bg-[#9DA1FF] dark:bg-[#c0c1ff]"></span>
+                    <span class="tdot w-1.5 h-1.5 rounded-full bg-[#9DA1FF] dark:bg-[#c0c1ff]"></span>
+                    <span class="tdot w-1.5 h-1.5 rounded-full bg-[#9DA1FF] dark:bg-[#c0c1ff]"></span>
                 </span>
-                <span>Thinking… OmniRetail AI sedang menganalisis data</span>
+                <span class="text-sm">Thinking… OmniRetail AI sedang menganalisis data</span>
             </div>
         </div>
     `);
@@ -181,21 +176,24 @@ function removeThinking() {
 }
 
 function addAiMessage(text, isError) {
-    const bubbleClass = isError ? "bubble-error" : "bubble-ai";
+    const bubbleBg = isError ? "bg-error-container dark:bg-[#93000a]" : "bg-[#0F172A] dark:bg-[#39485a]";
+    const bubbleText = isError ? "text-on-error-container dark:text-[#ffdad6]" : "text-[#EAF1FF] dark:text-[#a7b6cc]";
+    const bubbleBorder = isError ? "border border-error/20 dark:border-transparent" : "shadow-sm";
+    
     const node = el(`
-        <div class="msg ai">
-            <div class="msg-tag">
-                <span class="tag-icon"><span class="material-symbols-outlined">smart_toy</span></span>
-                <span>${isError ? "Error" : "OmniRetail Agent"}</span>
+        <div class="self-start max-w-[92%] md:max-w-[72%] flex flex-col items-start w-full gap-md">
+            <div class="w-full">
+                <div class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant dark:text-[#94A3B8] mb-1">${isError ? "Error" : "OmniRetail Agent"}</div>
+                <div class="${bubbleBg} ${bubbleText} px-lg py-md rounded-xl rounded-tl-sm font-body-md text-body-md ${bubbleBorder} ai-prose"></div>
             </div>
-            <div class="${bubbleClass}"></div>
         </div>
     `);
-    // Use markdown rendering for AI responses, plain text for errors
+    
+    const contentDiv = node.querySelector(".ai-prose");
     if (isError) {
-        node.querySelector(`.${bubbleClass}`).textContent = text;
+        contentDiv.textContent = text;
     } else {
-        node.querySelector(`.${bubbleClass}`).innerHTML = renderMarkdown(text);
+        contentDiv.innerHTML = renderMarkdown(text);
     }
     chatList.appendChild(node);
     return node;
@@ -224,35 +222,42 @@ function buildTableCard(sqlResult) {
     );
 
     const headerCells = columns
-        .map((col) => `<th class="${numericCols.has(col) ? "num" : ""}">${escapeHtml(col)}</th>`)
+        .map((col) => `<th class="py-2 px-md font-medium ${numericCols.has(col) ? "text-right" : ""}">${escapeHtml(col)}</th>`)
         .join("");
 
     const bodyRows = rows
         .map(
             (row) =>
-                `<tr>${columns
-                    .map((col) => `<td class="${numericCols.has(col) ? "num" : ""}">${formatCell(row[col])}</td>`)
-                    .join("")}</tr>`
+                `<tr class="hover:bg-surface-container-low dark:hover:bg-[#2a292f] transition-colors">` +
+                columns
+                    .map((col) => {
+                        const isNum = numericCols.has(col);
+                        return `<td class="py-3 px-md ${isNum ? "text-right font-medium" : "font-label-sm text-label-sm"} border-b border-border-std dark:border-[#334155]">${formatCell(row[col])}</td>`;
+                    })
+                    .join("") +
+                `</tr>`
         )
         .join("");
 
     const card = el(`
-        <div class="card">
-            <div class="card-head">
-                <span class="card-title">Data Table</span>
-                <span class="card-actions">
-                    <button type="button" title="Download CSV">
-                        <span class="material-symbols-outlined">download</span>
-                    </button>
-                </span>
+        <div class="bg-surface-container-lowest dark:bg-[#1f1f25] border border-border-std dark:border-[#334155] rounded-lg overflow-hidden w-full mt-2">
+            <div class="px-md py-sm border-b border-border-std dark:border-[#334155] bg-surface-container dark:bg-[#2a292f] flex items-center justify-between">
+                <h3 class="font-label-md text-label-md font-semibold text-on-surface dark:text-[#e4e1e9] uppercase tracking-wider">Data Table</h3>
+                <button type="button" class="text-on-surface-variant hover:text-primary dark:text-[#c7c5d3] dark:hover:text-[#c0c1ff] transition-colors" title="Download CSV">
+                    <span class="material-symbols-outlined text-[18px]">download</span>
+                </button>
             </div>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead><tr>${headerCells}</tr></thead>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left font-body-sm text-body-sm text-on-surface dark:text-[#e4e1e9] border-collapse">
+                    <thead class="bg-surface-bg dark:bg-[#131318] text-on-surface-variant dark:text-[#94A3B8] font-label-md text-label-md uppercase border-b border-border-std dark:border-[#334155]">
+                        <tr>${headerCells}</tr>
+                    </thead>
                     <tbody>${bodyRows}</tbody>
                 </table>
             </div>
-            <div class="card-foot">1&ndash;${rows.length} of ${rows.length}</div>
+            <div class="bg-surface-bg dark:bg-[#131318] px-md py-1 font-label-sm text-label-sm text-on-surface-variant dark:text-[#94A3B8] text-right border-t border-border-std dark:border-[#334155]">
+                1&ndash;${rows.length} of ${rows.length}
+            </div>
         </div>
     `);
 
@@ -286,19 +291,19 @@ function buildChartCard(chartPath) {
     if (!chartPath || !chartPath.trim()) return null;
     const src = chartPath.startsWith("http") ? chartPath : API_BASE + chartPath;
     return el(`
-        <div class="card">
-            <div class="card-head">
-                <span class="card-title">Visualization</span>
-                <span class="card-actions">
-                    <a href="${escapeHtml(src)}" target="_blank" rel="noopener" title="Open full size" style="display:inline-flex;">
-                        <span class="material-symbols-outlined">fullscreen</span>
-                    </a>
-                </span>
+        <div class="bg-surface-container-lowest dark:bg-[#1f1f25] border border-border-std dark:border-[#334155] rounded-lg overflow-hidden w-full mt-2 p-md">
+            <div class="flex items-center justify-between mb-sm">
+                <h3 class="font-label-md text-label-md font-semibold text-on-surface dark:text-[#e4e1e9] uppercase tracking-wider">Visualization</h3>
+                <a href="${escapeHtml(src)}" target="_blank" rel="noopener" class="text-on-surface-variant dark:text-[#c7c5d3] hover:text-primary dark:hover:text-[#c0c1ff] transition-colors" title="Open full size">
+                    <span class="material-symbols-outlined text-[18px]">fullscreen</span>
+                </a>
             </div>
-            <div class="viz-body">
-                <img src="${escapeHtml(src)}" alt="Visualization generated from query result"/>
+            <div class="w-full bg-white rounded-lg p-2 border border-border-std">
+                <img src="${escapeHtml(src)}" alt="Visualization generated from query result" class="w-full h-auto rounded"/>
             </div>
-            <p class="viz-caption">Visualisasi dihasilkan otomatis dari hasil query.</p>
+            <p class="font-body-sm text-body-sm text-on-surface-variant dark:text-[#94A3B8] text-center mt-2">
+                Visualisasi dihasilkan otomatis dari hasil query.
+            </p>
         </div>
     `);
 }
@@ -312,25 +317,32 @@ function addThoughtProcess(query, sqlResult, pythonCode) {
     const preview = query.length > 36 ? query.slice(0, 36) + "…" : query;
 
     const node = el(`
-        <div class="expander open">
-            <button class="expander-header" type="button">
-                <span class="material-symbols-outlined">psychology</span>
-                <span class="expander-label">Query #${thoughtCount} &mdash; ${escapeHtml(preview)}</span>
-                <span class="material-symbols-outlined chevron">expand_more</span>
+        <div class="expander open border border-border-std dark:border-[#334155] rounded-lg bg-surface-container-lowest dark:bg-[#1f1f25] overflow-hidden">
+            <button class="w-full flex items-center justify-between p-sm text-on-surface dark:text-[#e4e1e9] hover:bg-surface-container dark:hover:bg-[#2a292f] transition-colors duration-150">
+                <div class="flex items-center gap-sm overflow-hidden flex-1">
+                    <span class="material-symbols-outlined text-on-surface-variant dark:text-[#c7c5d3] shrink-0">psychology</span>
+                    <span class="font-bold font-label-md text-label-md truncate text-left">#${thoughtCount} &mdash; ${escapeHtml(preview)}</span>
+                </div>
+                <span class="material-symbols-outlined text-on-surface-variant dark:text-[#c7c5d3] text-[18px] chevron shrink-0">expand_more</span>
             </button>
             <div class="expander-body">
-                <div class="code-section-label">SQL Result</div>
-                <pre class="code-block"><code>${sqlResult ? escapeHtml(sqlResult) : "—"}</code></pre>
-                <div class="code-section-label">Python Execution</div>
-                <pre class="code-block"><code>${pythonCode && !pythonCode.startsWith("Error") ? escapeHtml(pythonCode) : "—"}</code></pre>
+                <div class="px-sm pt-2 pb-1 font-label-sm text-label-sm uppercase text-on-surface-variant dark:text-[#94A3B8]">SQL Result</div>
+                <div class="p-sm bg-surface-container dark:bg-[#2a292f] border-y border-border-std dark:border-[#334155] font-label-sm text-label-sm text-on-surface-variant dark:text-[#c7c5d3] overflow-x-auto max-h-[200px] overflow-y-auto">
+                    <pre><code class="font-mono text-xs">${sqlResult ? escapeHtml(sqlResult) : "—"}</code></pre>
+                </div>
+                <div class="px-sm pt-2 pb-1 font-label-sm text-label-sm uppercase text-on-surface-variant dark:text-[#94A3B8]">Python Execution</div>
+                <div class="p-sm bg-surface-container dark:bg-[#2a292f] border-t border-border-std dark:border-[#334155] font-label-sm text-label-sm text-on-surface-variant dark:text-[#c7c5d3] overflow-x-auto max-h-[200px] overflow-y-auto">
+                    <pre><code class="font-mono text-xs">${pythonCode && !pythonCode.startsWith("Error") ? escapeHtml(pythonCode) : "—"}</code></pre>
+                </div>
             </div>
         </div>
     `);
 
-    node.querySelector(".expander-header").addEventListener("click", () => {
+    node.querySelector("button").addEventListener("click", () => {
         node.classList.toggle("open");
     });
 
+    // Close others
     thoughtList.querySelectorAll(".expander.open").forEach((other) => other.classList.remove("open"));
     thoughtList.prepend(node);
 }
@@ -405,7 +417,7 @@ async function handleQuery(query) {
 
         addThoughtProcess(trimmedQuery, sqlResult, pythonCode);
 
-        // Persist to state + localStorage
+        // Persist
         state.messages.push({
             role: "assistant",
             content: finalResponse,
@@ -471,14 +483,13 @@ function updateCharCount() {
     const len = chatInput.value.length;
     if (len > MAX_QUERY_LENGTH * 0.8) {
         charCount.textContent = `${len}/${MAX_QUERY_LENGTH}`;
-        charCount.style.color = len >= MAX_QUERY_LENGTH ? "var(--error)" : "var(--muted)";
+        charCount.classList.toggle("text-error", len >= MAX_QUERY_LENGTH);
     } else {
         charCount.textContent = "";
     }
 }
 
 // ── Event listeners ─────────────────────────────────────────────────────────
-// Form submit covers both the Send button and pressing Enter in the input
 chatForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const query = chatInput.value;
@@ -497,9 +508,9 @@ suggestionChips.addEventListener("click", (event) => {
 clearChatBtn.addEventListener("click", () => {
     chatList.innerHTML = "";
     thoughtList.innerHTML = `
-        <div class="empty-note">
-            <span class="material-symbols-outlined">psychology</span>
-            Belum ada query. Mulai bertanya untuk melihat proses berpikir AI.
+        <div class="empty-note mt-lg p-md bg-surface-container-lowest dark:bg-[#1f1f25] rounded-xl border border-border-std dark:border-[#334155] text-center mx-2">
+            <span class="material-symbols-outlined text-on-surface-variant dark:text-[#c7c5d3] mb-sm opacity-50 text-[24px]">psychology</span>
+            <p class="font-body-sm text-body-sm text-on-surface-variant dark:text-[#c7c5d3]">Belum ada query. Mulai bertanya untuk melihat proses berpikir AI.</p>
         </div>
     `;
     thoughtCount = 0;
@@ -510,18 +521,42 @@ clearChatBtn.addEventListener("click", () => {
 });
 
 sidebarToggle.addEventListener("click", () => {
-    sidebar.classList.toggle("open");
-    sidebarOverlay.classList.toggle("active");
+    sidebar.classList.toggle("-left-full");
+    sidebar.classList.toggle("left-0");
+    sidebarOverlay.classList.toggle("hidden");
 });
 
 sidebarOverlay.addEventListener("click", () => {
-    sidebar.classList.remove("open");
-    sidebarOverlay.classList.remove("active");
+    sidebar.classList.add("-left-full");
+    sidebar.classList.remove("left-0");
+    sidebarOverlay.classList.add("hidden");
 });
+
+// ── Theme toggle (Tailwind dark mode via class) ─────────────────────────────
+function updateThemeColorMeta() {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", document.documentElement.classList.contains("dark") ? "#131318" : "#f8f9ff");
+}
+
+function initThemeToggle() {
+    const isDark = document.documentElement.classList.contains("dark");
+    themeToggle.setAttribute("aria-pressed", String(isDark));
+    updateThemeColorMeta();
+
+    themeToggle.addEventListener("click", () => {
+        const nowDark = document.documentElement.classList.toggle("dark");
+        try {
+            localStorage.setItem(STORAGE_KEY_THEME, nowDark ? "dark" : "light");
+        } catch { /* storage unavailable */ }
+        themeToggle.setAttribute("aria-pressed", String(nowDark));
+        updateThemeColorMeta();
+    });
+}
 
 chatInput.addEventListener("input", updateCharCount);
 
 // ── Init ────────────────────────────────────────────────────────────────────
+initThemeToggle();
 checkHealth();
 setInterval(checkHealth, 30000);
 restoreChat();

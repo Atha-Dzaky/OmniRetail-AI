@@ -1,34 +1,31 @@
-# Secrets & environment
+# Environment & Secrets
 .env
 .env.*
-!.env.example
 
 # Python
 __pycache__/
 *.pyc
 *.pyo
+.conda/
 .pytest_cache/
 
-# Local conda environment
-.conda/
-
-# Logs & generated artifacts
-logs/
-charts/*.png
-
-# Large datasets (kept locally, not in repo)
-dataset/
-
-# Streamlit (legacy UI, migrated to FrontEnd/)
-.streamlit/
-
-# Frontend mockups & design docs (keep only code)
-FrontEnd/*.png
-FrontEnd/*.md
-
-# IDE
+# IDE & Editor
 .vscode/
 .idea/
+
+# AI Assistant Folders (Tidak untuk repo)
+agents/
+skills/
+tasks/
+
+# Data & Mockups (Tidak untuk repo, terlalu besar/sudah dimigrasi)
+dataset/
+exampleFE/
+
+# Logs & Generated Artifacts (Dibuat saat runtime)
+logs/
+charts/*.png
+*.log
 
 # OS
 .DS_Store
