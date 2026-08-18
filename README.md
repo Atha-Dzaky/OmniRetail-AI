@@ -2,6 +2,10 @@
 
 **Agentic E-commerce Data Analysis Chatbot — LangGraph · FastAPI · Groq · Native Web**
 
+<div align="center">
+  <img src="docs/demo.webp" alt="OmniRetail AI Demo" width="800" style="border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 20px 0;"/>
+</div>
+
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white)
 ![LangGraph](https://img.shields.io/badge/LangGraph-Workflow-1C3C3C?logo=langchain&logoColor=white)
@@ -15,9 +19,11 @@
 
 ## 📋 Executive Summary
 
-**OmniRetail AI** is an agentic data-analysis chatbot that lets non-technical users query an e-commerce sales warehouse (Amazon + International platforms, products, expenses) in **natural language** — and get back a SQL result table, an auto-generated chart, and a written business insight.
+**OmniRetail AI** is an advanced data-analysis chatbot that lets non-technical users query an e-commerce sales warehouse (Amazon + International platforms, products, expenses) in **natural language** — returning a SQL result table, an auto-generated chart, and a written business insight.
 
-The system is built as a **3-node LangGraph pipeline** (SQL Agent → Python Agent → Insight Node) orchestrated behind a FastAPI backend, powered by **Groq** for sub-second LLM inference and traced end-to-end with **LangSmith** for cost, latency, and quality evaluation.
+Unlike traditional document-based RAG, this project implements **Advanced Agentic RAG for Structured Data**, orchestrating a dynamic workflow that translates intent into executable code. It creatively combines three distinct AI topics into one cohesive product: **Natural Language Processing** (Text-to-SQL), **Generative Data Visualization** (Autonomous Python execution), and **Enterprise LLMOps**.
+
+The system is built as a **3-node LangGraph pipeline** (SQL Agent → Python Agent → Insight Node) orchestrated behind a robust **FastAPI** backend, powered by **Groq** for sub-second LLM inference, and traced end-to-end with **LangSmith** for granular cost, latency, and quality evaluation.
 
 Key outcomes:
 
@@ -25,7 +31,8 @@ Key outcomes:
 - 🧱 **Glass-box AI** — the UI exposes the agent's "thought process" (raw SQL + executed Python) in a dedicated sidebar
 - 🔒 **Defense-in-depth security** — SQL whitelist, sandboxed Python execution, CORS lockdown, rate limiting
 - 🎨 **Native Web UI** with Dark Mode and full mobile responsiveness — no heavyweight frontend framework
-- 🏠 **Dockerized homelab deployment** behind an Nginx reverse proxy
+- 🏠 **Dockerized Deployment** behind an Nginx reverse proxy, ready for seamless migration to **Cloud platforms** (AWS/GCP/DigitalOcean).
+- 📊 **LLMOps Integration** — Comprehensive tracking of token usage, latency, and costs via LangSmith.
 
 ---
 
