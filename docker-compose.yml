@@ -19,6 +19,17 @@ services:
       retries: 3
       start_period: 15s
 
+  frontend:
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    volumes:
+      - ./FrontEnd:/usr/share/nginx/html:ro
+    depends_on:
+      app:
+        condition: service_healthy
+
   nginx:
     image: nginx:1.25-alpine
     restart: unless-stopped

@@ -13,6 +13,13 @@ from uuid import uuid4
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+# Silence verbose third-party debug logs
+logging.getLogger("groq").setLevel(logging.WARNING)
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
+logging.getLogger("PIL").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+
 from langchain_community.utilities.sql_database import SQLDatabase
 from langchain_core.language_models import BaseLanguageModel
 from langchain_core.prompts import PromptTemplate
@@ -36,7 +43,7 @@ class OmniRetailState(TypedDict):
 
 def _create_llm() -> BaseLanguageModel:
     return ChatGroq(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-20b",
         groq_api_key=os.getenv("GROQ_API_KEY"),
         temperature=0
     )
@@ -53,9 +60,12 @@ def _create_sql_agent(llm: BaseLanguageModel) -> SQLDatabaseChain:
             "2. Do not include any prefix or suffix, including 'SQLQuery:', 'SQLResult:', or 'Answer:'.\n"
             "3. AGGREGATE FUNCTIONS: If you use aggregate functions like SUM(), COUNT(), AVG(), MIN(), or MAX(), ALL other columns in the SELECT clause MUST be included in the GROUP BY clause.\n"
             "4. SCHEMA AWARENESS: The 'size' and 'color' columns are ONLY in the 'products' table. If a query asks about size/color and sales, you MUST JOIN 'sales_transactions' with 'products'.\n"
-            "5. DATA EXISTENCE: If the user asks about data that does not exist in the database (e.g., cats, food, weather, animals, sports, etc. - anything unrelated to e-commerce sales), DO NOT generate SQL. Return EXACTLY: 'MAAF_DATA_TIDAK_ADA'\n"
-            "6. AMBIGUOUS COLUMNS IN JOINS: When performing a JOIN between tables that have the same column name (e.g., 'sku' exists in both 'products' and 'sales_transactions'), you MUST use table aliases or full table names in the SELECT clause (e.g., 'SELECT p.sku, p.size' instead of just 'SELECT sku').\n"
-            "7. PERCENTAGE & DISTRIBUTION CALCULATIONS: When asked to calculate percentages or distributions, use Window Functions or Subqueries. Example: Calculate the total sum first, then divide each group's sum by the total, then multiply by 100.\n\n"
+            "5. CRITICAL SCHEMA RULE: The 'platform' column (e.g., 'Amazon', 'International') is ONLY in the 'sales_transactions' table. If you need to query by platform, use `st.platform`. You DO NOT need to JOIN with 'products' unless the query specifically asks for size or color.\n"
+            "6. DATA EXISTENCE: If the user asks about data that does not exist in the database (e.g., cats, food, weather, animals, sports, etc. - anything unrelated to e-commerce sales), DO NOT generate SQL. Return EXACTLY: 'MAAF_DATA_TIDAK_ADA'\n"
+            "7. AMBIGUOUS COLUMNS IN JOINS: When performing a JOIN between tables that have the same column name (e.g., 'sku' exists in both 'products' and 'sales_transactions'), you MUST use table aliases or full table names in the SELECT clause (e.g., 'SELECT p.sku, p.size' instead of just 'SELECT sku').\n"
+            "8. PERCENTAGE & DISTRIBUTION CALCULATIONS: When asked to calculate percentages or distributions, use Window Functions or Subqueries. Example: Calculate the total sum first, then divide each group's sum by the total, then multiply by 100.\n"
+            "9. CRITICAL NULL HANDLING: When sorting or filtering by a specific column (e.g., stock_quantity, total_amount), you MUST add a WHERE clause to exclude NULL values. Example: `WHERE stock_quantity IS NOT NULL`. Do not include placeholder products with NULL data in the results.\n"
+            "10. CRITICAL DATA CLEANLINESS: When querying for top products, categories, or sales, you MUST EXCLUDE dummy/operational SKUs. Specifically, add `WHERE sku != 'SHIPPING'` (or `sku NOT IN ('SHIPPING', '#REF!')`) to filter out non-product line items. Combine with rule 9 when both apply (e.g., `WHERE sku NOT IN ('SHIPPING', '#REF!') AND stock_quantity IS NOT NULL`).\n\n"
             "Schema:\n{table_info}\n"
             "Dialect: {dialect}\n"
             "Limit results to at most {top_k} rows unless the user explicitly asks for more.\n\n"
@@ -85,6 +95,17 @@ def _extract_sql_query(text_output: str) -> str:
 
 
 def _execute_sql_query(sql_query: str) -> str:
+    # ── Security: only allow read-only queries ──────────────────────────
+    normalized = sql_query.strip().upper()
+    if not (normalized.startswith("SELECT") or normalized.startswith("WITH")):
+        raise ValueError("Only SELECT/WITH queries are allowed for safety.")
+    _DANGEROUS_KEYWORDS = {"DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "TRUNCATE", "GRANT", "REVOKE"}
+    # Simple token check: split on whitespace and check first-level keywords
+    tokens = set(normalized.split())
+    found = tokens & _DANGEROUS_KEYWORDS
+    if found:
+        raise ValueError(f"Query contains disallowed keyword(s): {', '.join(found)}")
+
     with engine.begin() as conn:
         result = conn.execute(text(sql_query))
         try:
@@ -112,28 +133,44 @@ def _extract_python_code(text_output: str) -> str:
     return match.group(1).strip()
 
 
+_BLOCKED_PATTERNS = [
+    "import os", "import sys", "import subprocess", "import shutil",
+    "import socket", "import http", "import urllib", "import requests",
+    "__import__", "eval(", "exec(", "compile(", "open(",
+    "os.system", "os.popen", "os.exec", "os.spawn", "os.remove",
+    "os.unlink", "os.rmdir", "shutil.rmtree",
+    "subprocess.run", "subprocess.call", "subprocess.Popen",
+]
+
+
 def _execute_python_code(python_code: str, chart_path: str, sql_result: str) -> dict:
-    """Execute Python code in a safe namespace with predefined variables."""
+    """Execute Python code in a sandboxed namespace with only data-science libraries."""
+    # Block dangerous patterns before execution
+    code_lower = python_code.lower()
+    for pattern in _BLOCKED_PATTERNS:
+        if pattern.lower() in code_lower:
+            return {"error": f"Blocked: code contains disallowed pattern '{pattern}'"}
+
     namespace = {
         "chart_path": chart_path,
         "sql_result": sql_result,
         "json": json,
-        "os": os,
-        "re": re,
-        "Path": Path,
+        # NOTE: os, re, Path intentionally excluded for security
     }
-    
+
     # Import common data science libraries
     try:
         import pandas as pd
+        import matplotlib
+        matplotlib.use("Agg")          # non-interactive backend
         import matplotlib.pyplot as plt
         import numpy as np
         namespace.update({"pd": pd, "plt": plt, "np": np})
     except ImportError as e:
         return {"error": f"Required library not available: {e}"}
-    
+
     try:
-        exec(python_code, namespace)
+        exec(python_code, namespace)  # noqa: S102 — sandboxed via blocklist + restricted namespace
         return {
             "success": True,
             "message": f"Python code executed successfully. Chart saved to: {chart_path}",
@@ -153,15 +190,24 @@ def _get_chart_dir() -> str:
         return str(chart_dir)
 
 def _is_empty_or_invalid_result(sql_result: str) -> bool:
-    """Check if sql_result is empty, None, or contains error marker."""
+    """Check if sql_result is empty, None, or contains no usable data rows."""
     if not sql_result or sql_result is None:
         return True
     if "MAAF_DATA_TIDAK_ADA" in sql_result:
         return True
     try:
         parsed = json.loads(sql_result)
-        if isinstance(parsed, list) and len(parsed) == 0:
-            return True
+        if isinstance(parsed, list):
+            if len(parsed) == 0:
+                return True
+            # Aggregates without GROUP BY (e.g. SUM over an empty set) still
+            # return one row of NULLs — treat that as "no data".
+            if all(
+                isinstance(row, dict)
+                and not any(v is not None and v != "" for v in row.values())
+                for row in parsed
+            ):
+                return True
     except (json.JSONDecodeError, TypeError):
         pass
     return False
@@ -227,7 +273,7 @@ def create_omniretail_graph() -> StateGraph[OmniRetailState, None, OmniRetailSta
                 }
             return {
                 "sql_result": "",
-                "final_response": "Maaf, terjadi kesalahan teknis. Silakan coba lagi.",
+                "final_response": "Maaf, terjadi kesalahan teknis saat mengambil data. Silakan coba pertanyakan dengan kalimat yang berbeda.",
                 "python_code": "",
                 "chart_path": "",
             }
@@ -312,20 +358,70 @@ def create_omniretail_graph() -> StateGraph[OmniRetailState, None, OmniRetailSta
                 "final_response": f"Python node failed: {str(e)}",
             }
 
+    def insight_node(state: OmniRetailState) -> OmniRetailState:
+        """Generate a textual insight from the SQL result using the LLM."""
+        user_query = state.get("user_query", "")
+        sql_result = state.get("sql_result", "")
+
+        # Empty result: do NOT call the LLM. Return a friendly fallback,
+        # but preserve any user-facing message already set by the SQL node
+        # (e.g. out-of-scope refusal or rate-limit notice).
+        if _is_empty_or_invalid_result(sql_result):
+            existing = state.get("final_response", "")
+            if not existing or existing == sql_result:
+                return {
+                    "final_response": (
+                        "Maaf, tidak ada data yang ditemukan untuk pertanyaan tersebut. "
+                        "Data penjualan di database hanya tersedia dari bulan Maret hingga "
+                        "Juni 2022. Silakan coba periode lain."
+                    ),
+                }
+            return {"final_response": existing}
+
+        insight_prompt = (
+            "You are a senior data analyst. Based on the user's question and the SQL result data, "
+            "write a brief, insightful explanation in Indonesian (2-3 sentences). "
+            "Point out key trends or anomalies. Do not write code, just the textual analysis.\n\n"
+            f"USER QUESTION:\n{user_query}\n\n"
+            f"SQL RESULT DATA (JSON):\n{sql_result[:4000]}\n\n"
+            "Insight (in Indonesian):"
+        )
+
+        try:
+            llm_response = llm.invoke(insight_prompt)
+            insight_text = llm_response.content if hasattr(llm_response, "content") else str(llm_response)
+            insight_text = insight_text.strip()
+            if not insight_text:
+                raise ValueError("Empty insight response from LLM")
+            logger.info(f"Insight generated: {insight_text[:200]}")
+            return {"final_response": insight_text}
+        except Exception as e:
+            logger.error(f"Insight node error: {e}", exc_info=True)
+            return {
+                "final_response": (
+                    "Analisis singkat tidak dapat dibuat saat ini, "
+                    "namun tabel data dan visualisasi di atas tetap dapat digunakan."
+                ),
+            }
+
     def should_run_python(state: OmniRetailState) -> str:
         """Route to PythonAgent only if SQL returned valid data."""
         if _is_empty_or_invalid_result(state.get("sql_result", "")):
-            return "end"
+            return "insight"
         return "python"
 
     graph.add_node("SQLAgent", sql_node)
     graph.add_node("PythonAgent", python_node)
+    graph.add_node("InsightNode", insight_node)
     graph.set_entry_point("SQLAgent")
     graph.add_conditional_edges(
         "SQLAgent",
         should_run_python,
-        {"python": "PythonAgent", "end": END},
+        # Empty/invalid SQL skips the Python Agent and goes straight to
+        # InsightNode, which composes the friendly fallback message.
+        {"python": "PythonAgent", "insight": "InsightNode"},
     )
-    graph.set_finish_point("PythonAgent")
+    graph.add_edge("PythonAgent", "InsightNode")
+    graph.set_finish_point("InsightNode")
 
     return graph

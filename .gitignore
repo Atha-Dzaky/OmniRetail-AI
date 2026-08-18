@@ -16,6 +16,16 @@ __pycache__/
 logs/
 charts/*.png
 
+# Large datasets (kept locally, not in repo)
+dataset/
+
+# Streamlit (legacy UI, migrated to FrontEnd/)
+.streamlit/
+
+# Frontend mockups & design docs (keep only code)
+FrontEnd/*.png
+FrontEnd/*.md
+
 # IDE
 .vscode/
 .idea/
