@@ -2,7 +2,7 @@
    OmniRetail AI — Frontend Controller (Tailwind Version)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "";
 const API_URL = `${API_BASE}/graph/query`;
 const HEALTH_URL = `${API_BASE}/health`;
 const REQUEST_TIMEOUT_MS = 120000;
