@@ -2,9 +2,7 @@
 
 **Agentic E-commerce Data Analysis Chatbot — LangGraph · FastAPI · Groq · Native Web**
 
-<div align="center">
-  ![OmniRetail AI Demo](docs/demo.webp)
-</div>
+![OmniRetail AI Demo](docs/demo.webp)
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white)
