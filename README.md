@@ -3,7 +3,7 @@
 **Agentic E-commerce Data Analysis Chatbot — LangGraph · FastAPI · Groq · Native Web**
 
 <div align="center">
-  <img src="docs/demo.webp" alt="OmniRetail AI Demo" width="800" style="border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 20px 0;"/>
+  ![OmniRetail AI Demo](docs/demo.webp)
 </div>
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
