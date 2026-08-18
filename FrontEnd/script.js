@@ -6,10 +6,44 @@ const API_BASE = "http://127.0.0.1:8000";
 const API_URL = `${API_BASE}/graph/query`;
 const HEALTH_URL = `${API_BASE}/health`;
 const REQUEST_TIMEOUT_MS = 120000;
-const STORAGE_KEY_MESSAGES = "omniretail_messages";
-const STORAGE_KEY_THOUGHTS = "omniretail_thoughts";
+const STORAGE_KEY_MESSAGES = "omniretail_chat_history";
+const STORAGE_KEY_THOUGHTS = "omniretail_thought_processes";
+const LEGACY_STORAGE_KEYS = ["omniretail_messages", "omniretail_thoughts"];
 const STORAGE_KEY_THEME = "omniretail-theme";
 const MAX_QUERY_LENGTH = 2000;
+
+// ── Suggestion pool (dataset-specific questions) ────────────────────────────
+const SUGGESTION_POOL = [
+    "Bandingkan penjualan Amazon vs International",
+    "Tampilkan 5 produk dengan stok paling banyak",
+    "Buatkan pie chart distribusi ukuran (Size)",
+    "Tampilkan tren penjualan Amazon Maret sampai Mei 2022",
+    "Hitung total pendapatan dari platform Amazon",
+    "Tampilkan 10 transaksi penjualan dengan quantity terbesar",
+    "Bandingkan customer type B2B vs B2C",
+    "Tampilkan 5 kategori produk dengan pendapatan tertinggi",
+];
+
+function getRandomSuggestions(count = 3) {
+    const pool = [...SUGGESTION_POOL];
+    const picked = [];
+    while (picked.length < count && pool.length > 0) {
+        picked.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    }
+    return picked;
+}
+
+function getChipIcon(query) {
+    const q = query.toLowerCase();
+    if (q.includes("pie chart")) return "pie_chart";
+    if (q.includes("tren")) return "trending_up";
+    if (q.includes("stok")) return "inventory_2";
+    if (q.includes("transaksi")) return "receipt_long";
+    if (q.includes("kategori")) return "category";
+    if (q.includes("customer") || q.includes("b2b")) return "groups";
+    if (q.includes("ukuran") || q.includes("size")) return "straighten";
+    return "query_stats";
+}
 
 // ── DOM refs ────────────────────────────────────────────────────────────────
 const chatForm = document.getElementById("chatForm");
@@ -93,9 +127,24 @@ function saveState(messages, thoughts) {
 
 function loadState() {
     try {
-        const messages = JSON.parse(localStorage.getItem(STORAGE_KEY_MESSAGES) || "[]");
-        const thoughts = JSON.parse(localStorage.getItem(STORAGE_KEY_THOUGHTS) || "[]");
-        return { messages, thoughts };
+        let messages = null;
+        let thoughts = null;
+        // Migrate legacy keys (pre-rename) once, then purge them
+        try {
+            messages = JSON.parse(localStorage.getItem(STORAGE_KEY_MESSAGES) || "null");
+            thoughts = JSON.parse(localStorage.getItem(STORAGE_KEY_THOUGHTS) || "null");
+            if (messages === null) {
+                messages = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEYS[0]) || "null");
+            }
+            if (thoughts === null) {
+                thoughts = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEYS[1]) || "null");
+            }
+            LEGACY_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+        } catch { /* corrupt legacy data — start fresh */ }
+        return {
+            messages: Array.isArray(messages) ? messages : [],
+            thoughts: Array.isArray(thoughts) ? thoughts : [],
+        };
     } catch {
         return { messages: [], thoughts: [] };
     }
@@ -134,6 +183,19 @@ async function checkHealth() {
 }
 
 // ── Rendering: chat ─────────────────────────────────────────────────────────
+function renderSuggestionChips() {
+    if (!suggestionChips) return;
+    suggestionChips.innerHTML = "";
+    for (const question of getRandomSuggestions(3)) {
+        suggestionChips.appendChild(el(`
+            <button data-query="${escapeHtml(question)}" class="chip bg-surface-container-lowest dark:bg-[#1f1f25] border border-border-std dark:border-[#334155] rounded-xl p-md text-left hover:border-primary dark:hover:border-[#c0c1ff] hover:shadow-[0_0_0_2px_rgba(21,21,125,0.12)] dark:hover:shadow-[0_0_0_2px_rgba(192,193,255,0.15)] transition-all duration-150 group">
+                <span class="material-symbols-outlined text-primary dark:text-[#c0c1ff] mb-sm block group-hover:scale-110 transition-transform">${getChipIcon(question)}</span>
+                <span class="font-body-sm text-body-sm text-on-surface dark:text-[#e4e1e9] block font-medium">${escapeHtml(question)}</span>
+            </button>
+        `));
+    }
+}
+
 function hideWelcome() {
     if (welcomeHero) welcomeHero.style.display = "none";
 }
@@ -309,7 +371,7 @@ function buildChartCard(chartPath) {
 }
 
 // ── Rendering: sidebar thought process ──────────────────────────────────────
-function addThoughtProcess(query, sqlResult, pythonCode) {
+function addThoughtProcess(query, sqlQuery, sqlResult, pythonCode) {
     const emptyNote = thoughtList.querySelector(".empty-note");
     if (emptyNote) emptyNote.remove();
 
@@ -326,6 +388,10 @@ function addThoughtProcess(query, sqlResult, pythonCode) {
                 <span class="material-symbols-outlined text-on-surface-variant dark:text-[#c7c5d3] text-[18px] chevron shrink-0">expand_more</span>
             </button>
             <div class="expander-body">
+                <div class="px-sm pt-2 pb-1 font-label-sm text-label-sm uppercase text-on-surface-variant dark:text-[#94A3B8]">SQL Query</div>
+                <div class="p-sm bg-surface-container dark:bg-[#2a292f] border-y border-border-std dark:border-[#334155] font-label-sm text-label-sm text-on-surface-variant dark:text-[#c7c5d3] overflow-x-auto max-h-[200px] overflow-y-auto">
+                    <pre><code class="language-sql font-mono text-xs">${sqlQuery ? escapeHtml(sqlQuery) : "—"}</code></pre>
+                </div>
                 <div class="px-sm pt-2 pb-1 font-label-sm text-label-sm uppercase text-on-surface-variant dark:text-[#94A3B8]">SQL Result</div>
                 <div class="p-sm bg-surface-container dark:bg-[#2a292f] border-y border-border-std dark:border-[#334155] font-label-sm text-label-sm text-on-surface-variant dark:text-[#c7c5d3] overflow-x-auto max-h-[200px] overflow-y-auto">
                     <pre><code class="font-mono text-xs">${sqlResult ? escapeHtml(sqlResult) : "—"}</code></pre>
@@ -403,6 +469,7 @@ async function handleQuery(query) {
 
         const data = await resp.json();
         const finalResponse = data.final_response || "Tidak ada respons dari AI.";
+        const sqlQuery = data.sql_query || "";
         const sqlResult = data.sql_result || "";
         const pythonCode = data.python_code || "";
         const chartPath = data.chart_path || "";
@@ -415,7 +482,7 @@ async function handleQuery(query) {
         const chartCard = buildChartCard(chartPath);
         if (chartCard) msgNode.appendChild(chartCard);
 
-        addThoughtProcess(trimmedQuery, sqlResult, pythonCode);
+        addThoughtProcess(trimmedQuery, sqlQuery, sqlResult, pythonCode);
 
         // Persist
         state.messages.push({
@@ -424,7 +491,7 @@ async function handleQuery(query) {
             sql_result: sqlResult,
             chart_path: chartPath,
         });
-        state.thoughts.push({ query: trimmedQuery, sql_result: sqlResult, python_code: pythonCode });
+        state.thoughts.push({ query: trimmedQuery, sql_query: sqlQuery, sql_result: sqlResult, python_code: pythonCode });
         saveState(state.messages, state.thoughts);
 
     } catch (error) {
@@ -472,7 +539,7 @@ function restoreChat() {
 
     // Restore thought expanders
     for (const tp of state.thoughts) {
-        addThoughtProcess(tp.query, tp.sql_result, tp.python_code);
+        addThoughtProcess(tp.query, tp.sql_query || "", tp.sql_result, tp.python_code);
     }
 
     scrollToBottom();
@@ -518,6 +585,7 @@ clearChatBtn.addEventListener("click", () => {
     state.thoughts.length = 0;
     clearState();
     if (welcomeHero) welcomeHero.style.display = "";
+    renderSuggestionChips();
 });
 
 sidebarToggle.addEventListener("click", () => {
@@ -560,4 +628,7 @@ initThemeToggle();
 checkHealth();
 setInterval(checkHealth, 30000);
 restoreChat();
+if (state.messages.length === 0) {
+    renderSuggestionChips();
+}
 chatInput.focus();

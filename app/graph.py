@@ -35,6 +35,7 @@ from app.db import DATABASE_URL, engine
 
 class OmniRetailState(TypedDict):
     user_query: str
+    sql_query: str
     sql_result: str
     python_code: str
     chart_path: str
@@ -245,6 +246,7 @@ def create_omniretail_graph() -> StateGraph[OmniRetailState, None, OmniRetailSta
             logger.info(f"SQL result: {sql_result[:200]}...")
 
             return {
+                "sql_query": sql_query,
                 "sql_result": sql_result,
                 "final_response": sql_result,
             }
@@ -252,6 +254,7 @@ def create_omniretail_graph() -> StateGraph[OmniRetailState, None, OmniRetailSta
             # SQL extraction or execution failed
             logger.error(f"SQL extraction error: {e}")
             return {
+                "sql_query": "",
                 "sql_result": "",
                 "final_response": "Maaf, saya tidak dapat menemukan data atau membuat query untuk pertanyaan tersebut. Silakan tanyakan hal lain seputar data e-commerce.",
                 "python_code": "",
@@ -266,12 +269,14 @@ def create_omniretail_graph() -> StateGraph[OmniRetailState, None, OmniRetailSta
                 wait_match = re_mod.search(r"try again in ([\w\.]+)", error_str)
                 wait_time = wait_match.group(1) if wait_match else "beberapa menit"
                 return {
+                    "sql_query": "",
                     "sql_result": "",
                     "final_response": f"Groq API rate limit tercapai. Silakan coba lagi dalam {wait_time}.",
                     "python_code": "",
                     "chart_path": "",
                 }
             return {
+                "sql_query": "",
                 "sql_result": "",
                 "final_response": "Maaf, terjadi kesalahan teknis saat mengambil data. Silakan coba pertanyakan dengan kalimat yang berbeda.",
                 "python_code": "",

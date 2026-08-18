@@ -27,6 +27,7 @@ class GraphRequest(BaseModel):
 
 class GraphResponse(BaseModel):
     user_query: str
+    sql_query: Optional[str] = ""
     sql_result: str = ""
     python_code: Optional[str] = ""
     chart_path: Optional[str] = ""

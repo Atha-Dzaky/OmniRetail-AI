@@ -145,28 +145,17 @@
             <button id="sidebarToggle" class="md:hidden text-on-surface-variant dark:text-[#c7c5d3] hover:text-primary transition-colors p-1">
                 <span class="material-symbols-outlined">menu</span>
             </button>
+            <div class="w-8 h-8 bg-primary dark:bg-[#c0c1ff] rounded flex items-center justify-center text-on-primary dark:text-[#21237c] shrink-0">
+                <span class="material-symbols-outlined text-[20px]">analytics</span>
+            </div>
             <span class="font-brand-title text-brand-title text-primary dark:text-[#c0c1ff] tracking-tight hidden sm:block">OmniRetail AI</span>
             <span class="font-brand-title text-[20px] font-black text-primary dark:text-[#c0c1ff] tracking-tight sm:hidden">OmniRetail</span>
         </div>
-        <div class="hidden md:flex items-center gap-lg h-full">
-            <a class="text-on-surface-variant dark:text-[#c7c5d3] hover:text-primary dark:hover:text-[#c0c1ff] transition-colors duration-150 flex items-center h-full" href="#">Analytics</a>
-            <a class="text-primary dark:text-[#c0c1ff] font-bold border-b-2 border-primary dark:border-[#c0c1ff] hover:text-primary transition-colors duration-150 flex items-center h-full" href="#">Agents</a>
-            <a class="text-on-surface-variant dark:text-[#c7c5d3] hover:text-primary dark:hover:text-[#c0c1ff] transition-colors duration-150 flex items-center h-full" href="#">Logs</a>
-        </div>
         <div class="flex items-center gap-sm md:gap-md">
-            <button class="bg-primary dark:bg-[#c0c1ff] text-on-primary dark:text-[#21237c] font-label-md text-label-md px-md py-sm rounded hover:bg-primary-container dark:hover:bg-[#9da1ff] transition-colors duration-150 hidden md:block">
-                Deploy Agent
-            </button>
             <!-- Theme Toggle -->
             <button id="themeToggle" class="p-2 text-on-surface-variant dark:text-[#c7c5d3] hover:text-primary dark:hover:text-[#c0c1ff] hover:bg-surface-container-high dark:hover:bg-[#2a292f] transition-colors rounded-full flex items-center justify-center">
                 <span class="material-symbols-outlined dark:hidden">light_mode</span>
                 <span class="material-symbols-outlined hidden dark:block">dark_mode</span>
-            </button>
-            <button class="p-2 text-on-surface-variant dark:text-[#c7c5d3] hover:text-primary dark:hover:text-[#c0c1ff] hover:bg-surface-container-high dark:hover:bg-[#2a292f] transition-colors rounded-full hidden sm:flex items-center justify-center">
-                <span class="material-symbols-outlined" data-icon="notifications">notifications</span>
-            </button>
-            <button class="p-2 text-on-surface-variant dark:text-[#c7c5d3] hover:text-primary dark:hover:text-[#c0c1ff] hover:bg-surface-container-high dark:hover:bg-[#2a292f] transition-colors rounded-full flex items-center justify-center">
-                <span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
             </button>
         </div>
     </nav>
@@ -218,23 +207,8 @@
                         Tanya dalam bahasa alami, dapat jawaban data.
                     </p>
                     
-                    <!-- Suggestion Chips -->
+                    <!-- Suggestion Chips (rendered dynamically by script.js) -->
                     <div id="suggestionChips" class="grid grid-cols-1 md:grid-cols-3 gap-md w-full max-w-3xl">
-                        <button data-query="Bandingkan performa penjualan kuartal 2 vs kuartal 3" class="chip bg-surface-container-lowest dark:bg-[#1f1f25] border border-border-std dark:border-[#334155] rounded-xl p-md text-left hover:border-primary dark:hover:border-[#c0c1ff] hover:shadow-[0_0_0_2px_rgba(21,21,125,0.12)] dark:hover:shadow-[0_0_0_2px_rgba(192,193,255,0.15)] transition-all duration-150 group">
-                            <span class="material-symbols-outlined text-primary dark:text-[#c0c1ff] mb-sm block group-hover:scale-110 transition-transform">bar_chart</span>
-                            <span class="font-body-sm text-body-sm text-on-surface dark:text-[#e4e1e9] block font-medium">Compare Q2 vs Q3</span>
-                            <span class="font-label-sm text-label-sm text-on-surface-variant dark:text-[#94A3B8] block mt-xs opacity-80 normal-case tracking-normal">Revenue & Margin</span>
-                        </button>
-                        <button data-query="Tampilkan produk dengan stok paling sedikit" class="chip bg-surface-container-lowest dark:bg-[#1f1f25] border border-border-std dark:border-[#334155] rounded-xl p-md text-left hover:border-primary dark:hover:border-[#c0c1ff] hover:shadow-[0_0_0_2px_rgba(21,21,125,0.12)] dark:hover:shadow-[0_0_0_2px_rgba(192,193,255,0.15)] transition-all duration-150 group">
-                            <span class="material-symbols-outlined text-primary dark:text-[#c0c1ff] mb-sm block group-hover:scale-110 transition-transform">warning</span>
-                            <span class="font-body-sm text-body-sm text-on-surface dark:text-[#e4e1e9] block font-medium">Show Inventory Alerts</span>
-                            <span class="font-label-sm text-label-sm text-on-surface-variant dark:text-[#94A3B8] block mt-xs opacity-80 normal-case tracking-normal">Low stock SKUs</span>
-                        </button>
-                        <button data-query="Tampilkan 5 produk dengan penjualan tertinggi berdasarkan total quantity" class="chip bg-surface-container-lowest dark:bg-[#1f1f25] border border-border-std dark:border-[#334155] rounded-xl p-md text-left hover:border-primary dark:hover:border-[#c0c1ff] hover:shadow-[0_0_0_2px_rgba(21,21,125,0.12)] dark:hover:shadow-[0_0_0_2px_rgba(192,193,255,0.15)] transition-all duration-150 group">
-                            <span class="material-symbols-outlined text-primary dark:text-[#c0c1ff] mb-sm block group-hover:scale-110 transition-transform">local_mall</span>
-                            <span class="font-body-sm text-body-sm text-on-surface dark:text-[#e4e1e9] block font-medium">Top 5 Products</span>
-                            <span class="font-label-sm text-label-sm text-on-surface-variant dark:text-[#94A3B8] block mt-xs opacity-80 normal-case tracking-normal">By volume this month</span>
-                        </button>
                     </div>
                 </div>
 
