@@ -34,35 +34,35 @@ Key outcomes:
 ```mermaid
 graph TB
     subgraph "Client Layer"
-        UI[Native Web UI<br/>HTML / CSS / Vanilla JS<br/>Dark Mode + Mobile Responsive]
+        UI["Native Web UI<br/>HTML / CSS / Vanilla JS<br/>Dark Mode + Mobile Responsive"]
     end
 
     subgraph "Edge / Homelab"
-        Nginx[Nginx Reverse Proxy<br/>:80 + /charts static cache]
-        FE[Nginx Static Server<br/>:3000]
+        Nginx["Nginx Reverse Proxy<br/>Port 80 + /charts static cache"]
+        FE["Nginx Static Server<br/>Port 3000"]
     end
 
-    subgraph "API Layer (FastAPI :8000)"
-        API[POST /graph/query<br/>slowapi rate-limited]
-        CORS[CORS Lockdown<br/>explicit origin allowlist]
-        HEALTH[GET /health]
+    subgraph "API Layer (FastAPI Port 8000)"
+        API["POST /graph/query<br/>slowapi rate-limited"]
+        CORS["CORS Lockdown<br/>explicit origin allowlist"]
+        HEALTH["GET /health"]
     end
 
     subgraph "LangGraph Orchestration"
-        SQLAgent[SQL Agent Node<br/>NL → SQL (SELECT-only)]
-        Router{Empty result?}
-        PythonAgent[Python Agent Node<br/>sandboxed chart generation]
-        Insight[Insight Node<br/>natural-language analysis]
+        SQLAgent["SQL Agent Node<br/>NL to SQL (SELECT-only)"]
+        Router{"Empty result?"}
+        PythonAgent["Python Agent Node<br/>sandboxed chart generation"]
+        Insight["Insight Node<br/>natural-language analysis"]
     end
 
     subgraph "Data Layer"
-        PostgresDB[(PostgreSQL<br/>products · sales_transactions<br/>expenses · warehouse ops)]
-        ChartFS[Chart Storage /charts]
+        PostgresDB[("PostgreSQL<br/>products, sales_transactions<br/>expenses, warehouse ops")]
+        ChartFS["Chart Storage /charts"]
     end
 
     subgraph "External Services"
-        GroqAPI[Groq API<br/>openai/gpt-oss-20b]
-        LangSmith[LangSmith<br/>tracing · cost · latency · evals]
+        GroqAPI["Groq API<br/>openai/gpt-oss-20b"]
+        LangSmith["LangSmith<br/>tracing, cost, latency, evals"]
     end
 
     UI --> FE
