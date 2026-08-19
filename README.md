@@ -13,6 +13,11 @@
 ![LangSmith](https://img.shields.io/badge/LangSmith-Tracing%20%2B%20Evals-1C3C3C)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
+<div align="center">
+  <h3><a href="https://omniretail.zaky-server.my.id/">🚀 Live Demo: Try it now!</a></h3>
+  <p>Publicly accessible via Cloudflare Tunnel from my homelab.</p>
+</div>
+
 ---
 
 ## 📋 Executive Summary
@@ -29,7 +34,7 @@ Key outcomes:
 - 🧱 **Glass-box AI** — the UI exposes the agent's "thought process" (raw SQL + executed Python) in a dedicated sidebar
 - 🔒 **Defense-in-depth security** — SQL whitelist, sandboxed Python execution, CORS lockdown, rate limiting
 - 🎨 **Native Web UI** with Dark Mode and full mobile responsiveness — no heavyweight frontend framework
-- 🏠 **Dockerized Deployment** behind an Nginx reverse proxy, ready for seamless migration to **Cloud platforms** (AWS/GCP/DigitalOcean).
+- 🏠 **Dockerized Homelab Deployment** behind an Nginx reverse proxy, securely exposed to the public internet via **Cloudflare Tunnel**.
 - 📊 **LLMOps Integration** — Comprehensive tracking of token usage, latency, and costs via LangSmith.
 
 ---
@@ -156,7 +161,9 @@ python scripts/load_csv_data.py         # ETL: clean CSVs → PostgreSQL
 
 > The e-commerce dataset (Amazon Sale Report, International sales, expenses, warehouse comparisons) is stored locally under `dataset/` and intentionally **not tracked** by git.
 
-### 3. Run everything with Docker
+### 3. Deployment & Exposing via Cloudflare Tunnel
+
+The project is designed to run easily in a Homelab environment using Docker Compose. For public access, it is securely exposed via **Cloudflare Tunnel** (e.g., `https://omniretail.zaky-server.my.id/`), which routes traffic directly to the Nginx container without opening inbound ports on the router.
 
 ```bash
 docker compose up -d
