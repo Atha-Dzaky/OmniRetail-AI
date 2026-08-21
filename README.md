@@ -15,7 +15,7 @@
 
 <div align="center">
   <h3><a href="https://omniretail.zaky-server.my.id/">🚀 Live Demo: Try it now!</a></h3>
-  <p>Publicly accessible via Cloudflare Tunnel from my homelab.</p>
+  <p></p>
 </div>
 
 ---
